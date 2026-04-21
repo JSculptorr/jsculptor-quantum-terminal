@@ -1,0 +1,15 @@
+{
+  "name": "JSculptor Terminal",
+  "short_name": "JSculptor",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000a00",
+  "theme_color": "#00ff41",
+  "icons": [
+    {
+      "src": "qw.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
