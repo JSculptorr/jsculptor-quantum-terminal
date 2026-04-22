@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>JSCULPTOR // SNIPER_PRO_v7.1</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#fcd535">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        :root {
+            --binance-yellow: #fcd535;
+            --binance-black: #0b0e11;
+            --binance-gray: #1e2329;
+            --binance-green: #02c076;
+            --binance-red: #f84960;
+            --text-gray: #848e9c;
+        }
+
+        body {
+            background-color: var(--binance-black);
+            color: #eaecef;
+            font-family: 'Inter', sans-serif;
+            margin: 0; padding: 0;
+            font-size: 13px;
+            overflow-x: hidden;
+        }
+
+        /* BINANCE PRELOADER */
+        #loader {
+            position: fixed; inset: 0; background: var(--binance-black); z-index: 6000;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .loader-logo { width: 60px; height: 60px; border: 4px solid var(--binance-yellow); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* PROFESSIONAL AUTH */
+        #login-overlay {
+            position: fixed; inset: 0; background: var(--binance-black); z-index: 5500;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .login-box { 
+            padding: 35px; background: var(--binance-gray); border-radius: 16px; width: 90%; max-width: 380px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.6); text-align: center;
+        }
+        input { 
+            background: #2b3139; border: 1px solid transparent; color: white; padding: 14px; 
+            width: 100%; box-sizing: border-box; margin: 20px 0; outline: none; border-radius: 8px; font-size: 16px;
+        }
+        input:focus { border-color: var(--binance-yellow); }
+        button { 
+            background: var(--binance-yellow); color: #000; border: none; padding: 14px; 
+            font-weight: 600; cursor: pointer; width: 100%; border-radius: 8px; font-size: 16px; transition: 0.2s;
+        }
+        button:hover { background: #f0b90b; transform: translateY(-1px); }
+
+        /* HEADER */
+        .header { background: var(--binance-gray); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2b3139; }
+        .header-logo { color: var(--binance-yellow); font-weight: 700; font-size: 18px; letter-spacing: -1px; }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 320px 1fr 380px;
+            height: calc(100vh - 50px); gap: 2px; background: #2b3139;
+        }
+
+        @media (max-width: 1200px) {
+            .layout { grid-template-columns: 1fr; height: auto; }
+            .panel { height: auto; min-height: 400px; }
+        }
+
+        .panel { background: var(--binance-black); display: flex; flex-direction: column; overflow: hidden; }
+        .panel-title { padding: 12px 16px; font-size: 11px; color: var(--text-gray); font-weight: 600; border-bottom: 1px solid #2b3139; background: #161a1e; }
+
+        /* MARKET MATRIX */
+        .market-list { flex: 1; overflow-y: auto; }
+        .market-table { width: 100%; border-collapse: collapse; }
+        .market-table th { text-align: left; padding: 12px; font-size: 10px; color: var(--text-gray); position: sticky; top: 0; background: #161a1e; }
+        .market-table td { padding: 10px 12px; border-bottom: 1px solid #2b3139; font-weight: 500; }
+        
+        .price-up { color: var(--binance-green); animation: flashGreen 0.6s ease; }
+        .price-down { color: var(--binance-red); animation: flashRed 0.6s ease; }
+        @keyframes flashGreen { from { background: rgba(2, 192, 118, 0.25); } to { background: transparent; } }
+        @keyframes flashRed { from { background: rgba(248, 73, 96, 0.25); } to { background: transparent; } }
+
+        /* SIGNALS SNIPER STYLE */
+        #signals-container { flex: 1; overflow-y: auto; padding: 15px; background: #0b0e11; }
+        .signal-card {
+            background: var(--binance-gray); border-radius: 12px; padding: 18px; margin-bottom: 15px;
+            border-left: 5px solid var(--binance-yellow); animation: slideIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        .tag { font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: 700; margin-bottom: 10px; display: inline-block; }
+        .tag-long { background: rgba(2, 192, 118, 0.15); color: var(--binance-green); }
+        .tag-short { background: rgba(248, 73, 96, 0.15); color: var(--binance-red); }
+
+        .price-row { display: flex; justify-content: space-between; margin: 12px 0; padding: 10px 0; border-top: 1px solid #2b3139; border-bottom: 1px solid #2b3139; }
+        .p-label { font-size: 10px; color: var(--text-gray); margin-bottom: 4px; }
+        .p-val { font-weight: 700; font-size: 15px; }
+
+        /* LOGS & STATUS */
+        .logs-box { flex: 1; overflow-y: auto; padding: 12px; font-size: 11px; color: var(--text-gray); line-height: 1.8; }
+        .log-entry { border-bottom: 1px solid #1e2329; padding-bottom: 4px; margin-bottom: 4px; }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #3b424d; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <audio id="signal-sound" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3"></audio>
+
+    <div id="loader">
+        <div class="loader-logo"></div>
+        <div style="margin-top: 20px; font-weight: 600; color: var(--binance-yellow);" id="loader-msg">CALIBRATING_SNIPER_v7.1...</div>
+    </div>
+
+    <div id="login-overlay">
+        <div class="login-box">
+            <div class="header-logo" style="font-size: 26px; margin-bottom: 10px;">JSCULPTOR SNIPER PRO</div>
+            <div style="color: var(--text-gray); font-size: 12px; margin-bottom: 25px;">TREND-BASED LIQUIDITY ANALYSIS</div>
+            <input type="password" id="pass" placeholder="System Encryption Key" autofocus>
+            <button onclick="login()">AUTHORIZE_ACCESS</button>
+            <div id="login-status" style="margin-top: 20px; font-size: 12px;"></div>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="header-logo">JS_SNIPER <span style="color:var(--text-gray); font-size:12px; font-weight:400">| snp.v7.1.snr</span></div>
+        <div style="display: flex; gap: 20px; font-size: 11px; font-weight: 600;">
+            <div>MODE: <span style="color:var(--binance-yellow)">SNIPER_ACTIVE</span></div>
+            <div>TREND: <span id="trend-status" style="color:var(--binance-green)">SCANNING...</span></div>
+            <div>UPTIME: <span id="uptime-val">0s</span></div>
+        </div>
+    </div>
+
+    <div class="layout">
+        <div class="panel">
+            <div class="panel-title">MARKET WATCH (20 SNIPER NODES)</div>
+            <div class="market-list">
+                <table class="market-table">
+                    <thead>
+                        <tr>
+                            <th>ASSET</th>
+                            <th>PRICE</th>
+                            <th>SNIPER_SCORE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel" style="border-left: 1px solid #2b3139; border-right: 1px solid #2b3139;">
+            <div class="panel-title">SNIPER_SIGNALS (10M ANTI-SPAM)</div>
+            <div id="signals-container"></div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">SNIPER_CORE_LOGS</div>
+            <div id="hacker-logs" class="logs-box" style="display:flex; flex-direction:column-reverse;"></div>
+            
+            <div class="panel-title" style="border-top: 1px solid #2b3139;">NETWORK_PULSE</div>
+            <div id="traffic-monitor" class="logs-box" style="height: 140px; opacity: 0.6;"></div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        const matrixData = {};
+
+        // --- CORE LOGS ---
+        const logLines = ["TREND_GUARD: ACTIVATED", "SNIPER_SCAN: btcusdt", "LIQUIDITY_MAP: SYNCED", "EMA_21_FILTER: ON", "WAITING_FOR_SFP", "DATA_STREAM: SECURE"];
+        setInterval(() => {
+            const logs = document.getElementById('hacker-logs');
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerHTML = `<span style="color:var(--text-gray)">[${new Date().toLocaleTimeString()}]</span> ${logLines[Math.floor(Math.random()*logLines.length)]}`;
+            logs.prepend(div);
+            if(logs.children.length > 35) logs.lastChild.remove();
+        }, 2500);
+
+        // SYSTEM HEARTBEAT
+        socket.on('system_heartbeat', (data) => {
+            document.getElementById('uptime-val').innerText = data.uptime + 's';
+            const traffic = document.getElementById('traffic-monitor');
+            traffic.innerHTML = `<div>>> PKT_LOAD: ${data.load}% | CORE_STABLE</div>` + traffic.innerHTML;
+            if(traffic.innerHTML.length > 500) traffic.innerHTML = traffic.innerHTML.substring(0, 500);
+        });
+
+        // LOADER
+        function startLoader() {
+            const loader = document.getElementById('loader');
+            const msg = document.getElementById('loader-msg');
+            const steps = ["BOOTING_SNIPER...", "EMA_CALIBRATION...", "FETCHING_HISTORY...", "READY"];
+            loader.style.display = 'flex';
+            let i = 0;
+            const interval = setInterval(() => {
+                msg.innerText = steps[i];
+                i++;
+                if(i >= steps.length) { clearInterval(interval); setTimeout(() => loader.style.display = 'none', 800); }
+            }, 500);
+        }
+
+        // AUTH & HISTORY
+        async function login() {
+            const code = document.getElementById('pass').value;
+            const res = await fetch('/api/auth', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({code}) });
+            if (res.ok) {
+                document.getElementById('login-overlay').style.display = 'none';
+                startLoader();
+                loadSignalHistory();
+            } else {
+                document.getElementById('login-status').innerHTML = "ACCESS_DENIED: WRONG_KEY";
+                document.getElementById('login-status').style.color = "var(--binance-red)";
+            }
+        }
+
+        async function loadSignalHistory() {
+            try {
+                const res = await fetch('/api/signals');
+                const history = await res.json();
+                history.reverse().forEach(s => renderSignalCard(s, true));
+            } catch (err) { console.error("DB_FETCH_ERROR"); }
+        }
+
+        // RENDER SNIPER CARD
+        function renderSignalCard(s, isHistory = false) {
+            const container = document.getElementById('signals-container');
+            const card = document.createElement('div');
+            card.className = `signal-card ${isHistory ? 'history' : ''}`;
+            if(isHistory) card.style.opacity = "0.7";
+            
+            const isLong = s.type === 'LONG';
+            
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                    <div>
+                        <span class="tag ${isLong ? 'tag-long' : 'tag-short'}">${s.type} ${s.score}% CONFIDENCE</span>
+                        <div style="font-size:20px; font-weight:700">${s.symbol.replace('USDT','')} <span style="font-size:12px; color:var(--text-gray)">SNIPER_ENTRY</span></div>
+                    </div>
+                    <div style="text-align:right; font-size:11px; color:var(--text-gray)">
+                        ${new Date(s.timestamp).toLocaleTimeString()}
+                    </div>
+                </div>
+                
+                <div class="price-row">
+                    <div style="display:flex; flex-direction:column;">
+                        <span class="p-label">ENTRY_POINT</span>
+                        <span class="p-val" style="color:white">${s.entry.toFixed(s.entry < 1 ? 5 : 2)}</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column;">
+                        <span class="p-label">TARGET (1.5%)</span>
+                        <span class="p-val" style="color:var(--binance-green)">${s.tp.toFixed(s.entry < 1 ? 5 : 2)}</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column;">
+                        <span class="p-label">STOP (0.5%)</span>
+                        <span class="p-val" style="color:var(--binance-red)">${s.sl.toFixed(s.entry < 1 ? 5 : 2)}</span>
+                    </div>
+                </div>
+                
+                <div style="font-size:11px; color:var(--text-gray)">
+                    SNIPER_REASON: <span style="color:#eaecef">${s.reason}</span>
+                </div>
+            `;
+            
+            if(isHistory) container.appendChild(card);
+            else {
+                container.prepend(card);
+                // Пинг звуком на новый сигнал
+                document.getElementById('signal-sound').play().catch(e => console.log("Sound muted"));
+            }
+            if (container.children.length > 30) container.lastChild.remove();
+        }
+
+        // MATRIX (WITH TREND FLASH)
+        socket.on('matrix_update', (data) => {
+            const old = matrixData[data.s];
+            matrixData[data.s] = data;
+            
+            const body = document.getElementById('matrix-body');
+            body.innerHTML = Object.values(matrixData)
+                .sort((a,b) => b.sc - a.sc)
+                .map(m => {
+                    let cls = '';
+                    if (old && m.p > old.p) cls = 'price-up';
+                    else if (old && m.p < old.p) cls = 'price-down';
+
+                    return `
+                        <tr>
+                            <td style="font-weight:700">${m.s.replace('USDT','')}</td>
+                            <td class="${cls}">${m.p.toFixed(m.p < 1 ? 5 : 2)}</td>
+                            <td>
+                                <span style="color:${m.sc >= 80 ? 'var(--binance-yellow)' : 'white'}">
+                                    ${m.sc}%
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+        });
+
+        // NEW LIVE SIGNAL (SNIPER)
+        socket.on('new_signal', (s) => {
+            renderSignalCard(s);
+            if (window.navigator.vibrate) window.navigator.vibrate([150, 100, 150]);
+        });
+    </script>
+</body>
+</html>
